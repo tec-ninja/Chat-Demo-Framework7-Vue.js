@@ -21,12 +21,16 @@
   ],
   "dependencies": {
     "dom7": "^3.0.0",
+    "express": "^4.17.1",
     "framework7": "^6.3.2",
     "framework7-icons": "^5.0.3",
     "framework7-vue": "^6.3.2",
     "material-icons": "^1.2.1",
     "moment": "^2.29.1",
+    "serve-favicon": "^2.5.0",
     "skeleton-elements": "^3.5.0",
+    "socket.io": "^4.2.0",
+    "socket.io-client": "^4.2.0",
     "swiper": "^6.8.4",
     "vue": "^3.2.9"
   },

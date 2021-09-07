@@ -4,6 +4,7 @@
 
   <f7-messagebar
     ref="messagebar"
+    v-if="isLogged"
     v-model:value="messageText"
     :placeholder="placeholder"
     :attachments-visible="attachmentsVisible"
@@ -44,10 +45,12 @@
     </f7-messagebar-sheet>
   </f7-messagebar>
 
-  <f7-messages>
+  <f7-messages
+    v-if="isLogged"
+  >
     <f7-messages-title><b>{{date}},</b> {{time}}</f7-messages-title>
     <f7-message
-      v-for="(message, index) in messagesData"
+      v-for="(message, index) in messages"
       :key="index"
       :type="message.type"
       :image="message.image"
@@ -73,74 +76,60 @@
       :avatar="typingMessage.avatar"
     ></f7-message>
   </f7-messages>
+  <f7-block 
+    v-if="!isLogged"
+    strong
+  >
+    <f7-row>
+      <f7-col>
+        <f7-list
+          inline-labels 
+          no-hairlines-md
+        >
+          <f7-list-input
+            label="Name"
+            type="text"
+            placeholder="Your name"
+            v-model:value="userName"
+            clear-button
+          >
+            <f7-icon icon="demo-list-icon"></f7-icon>
+          </f7-list-input>
+        </f7-list>
+      </f7-col>
+    </f7-row>
+    <f7-row>
+      <f7-col>
+        <f7-button 
+          large 
+          fill
+          @click="setName"
+        >
+          Join
+        </f7-button>
+      </f7-col>
+    </f7-row>
+  </f7-block>
 </f7-page>
 </template>
 <script>
 import { f7, f7ready } from 'framework7-vue';
 import $ from 'dom7';
-import moment from 'moment';
+import io from 'socket.io-client';
+
+const socket = io('localhost:3000');
 
 export default {
   data() {
     return {
-      date: moment().format('dddd, MMMM D'),
-      time: moment().format('HH:mm'),
       attachments: [],
       sheetVisible: false,
       typingMessage: null,
       messageText: '',
-      messagesData: [
-        {
-          type: 'sent',
-          text: 'Hi, Kate',
-        },
-        {
-          type: 'sent',
-          text: 'How are you?',
-        },
-        {
-          name: 'Kate',
-          type: 'received',
-          text: 'Hi, I am good!',
-          avatar: 'https://cdn.framework7.io/placeholder/people-100x100-9.jpg',
-        },
-        {
-          name: 'Blue Ninja',
-          type: 'received',
-          text: 'Hi there, I am also fine, thanks! And how are you?',
-          avatar: 'https://cdn.framework7.io/placeholder/people-100x100-7.jpg',
-        },
-        {
-          type: 'sent',
-          text: 'Hey, Blue Ninja! Glad to see you ;)',
-        },
-        {
-          type: 'sent',
-          text: 'Hey, look, cutest kitten ever!',
-        },
-        {
-          type: 'sent',
-          image: 'https://cdn.framework7.io/placeholder/cats-200x260-4.jpg',
-        },
-        {
-          name: 'Kate',
-          type: 'received',
-          text: 'Nice!',
-          avatar: 'https://cdn.framework7.io/placeholder/people-100x100-9.jpg',
-        },
-        {
-          name: 'Kate',
-          type: 'received',
-          text: 'Like it very much!',
-          avatar: 'https://cdn.framework7.io/placeholder/people-100x100-9.jpg',
-        },
-        {
-          name: 'Blue Ninja',
-          type: 'received',
-          text: 'Awesome!',
-          avatar: 'https://cdn.framework7.io/placeholder/people-100x100-7.jpg',
-        },
-      ],
+      users: [],
+      userName: '',
+      isLogged: false,
+      messages: [],
       images: [
         'https://cdn.framework7.io/placeholder/cats-300x300-1.jpg',
         'https://cdn.framework7.io/placeholder/cats-200x300-2.jpg',
@@ -163,20 +152,6 @@ export default {
           avatar: 'https://cdn.framework7.io/placeholder/people-100x100-7.jpg',
         },
       ],
-      answers: [
-        'Yes!',
-        'No',
-        'Hm...',
-        'I am not sure',
-        'And what about you?',
-        'May be ;)',
-        'Lorem ipsum dolor sit amet, consectetur',
-        'What?',
-        'Are you sure?',
-        'Of course',
-        'Need to think about it',
-        'Amazing!!!',
-      ],
       responseInProgress: false,
     };
   },
@@ -192,14 +167,39 @@ export default {
   },
   mounted() {
     const self = this;
-    f7ready(() => {
-      self.messagebar = f7.messagebar.get(self.$refs.messagebar.$el);
+    // f7ready(() => {
+    //   self.messagebar = f7.messagebar.get(self.$refs.messagebar.$el);
+    // });
+
+    socket.on('connection', () => {
+      console.log('connected');
+    });
+
+    // When the server emits a message, the client updates message list
+    socket.on('read-msg', function(messages) {
+      self.messages.push(...messages);
+    });
+
+    // When user connects, the server emits user-connected event which updates user list
+    socket.on('user-connected', function(userId) {
+      self.users.push(userId);
+    });
+
+    // Init chat event. Updates the initial chat with current messages
+    socket.on('init-chat', function(messages) {
+      console.log('inited');
+      self.messages = messages;
+    });
+
+    // Init user list. Updates user list when the client init
+    socket.on('update-users', function(users) {
+      self.users = users;
     });
   },
   methods: {
     isFirstMessage(message, index) {
       const self = this;
-      const previousMessage = self.messagesData[index - 1];
+      const previousMessage = self.messages[index - 1];
       if (message.isTitle) return false;
       if (
         !previousMessage ||
@@ -211,7 +211,7 @@ export default {
     },
     isLastMessage(message, index) {
       const self = this;
-      const nextMessage = self.messagesData[index + 1];
+      const nextMessage = self.messages[index + 1];
       if (message.isTitle) return false;
       if (!nextMessage || nextMessage.type !== message.type || nextMessage.name !== message.name)
         return true;
@@ -219,7 +219,7 @@ export default {
     },
     isTailMessage(message, index) {
       const self = this;
-      const nextMessage = self.messagesData[index + 1];
+      const nextMessage = self.messages[index + 1];
       if (message.isTitle) return false;
       if (!nextMessage || nextMessage.type !== message.type || nextMessage.name !== message.name)
         return true;
@@ -267,32 +267,42 @@ export default {
       // Clear area
       self.messageText = '';
       // Focus area
-      if (text.length) self.messagebar.focus();
-      // Send message
-      self.messagesData.push(...messagesToSend);
+      if (text.length) f7.messagebar.get(self.$refs.messagebar.$el).focus();
 
-      // Mock response
-      if (self.responseInProgress) return;
-      self.responseInProgress = true;
-      setTimeout(() => {
-        const answer = self.answers[Math.floor(Math.random() * self.answers.length)];
-        const person = self.people[Math.floor(Math.random() * self.people.length)];
-        self.typingMessage = {
-          name: person.name,
-          avatar: person.avatar,
-        };
-        setTimeout(() => {
-          self.messagesData.push({
-            text: answer,
-            type: 'received',
-            name: person.name,
-            avatar: person.avatar,
-          });
-          self.typingMessage = null;
-          self.responseInProgress = false;
-        }, 4000);
-      }, 1000);
+      self.messages.push(...messagesToSend.map(item => ({...item, type: 'sent'})));
+
+      console.log(self.messages);
+
+      // Send message
+      socket.emit('send-msg', messagesToSend.map(item => ({...item, name: self.userName, type: 'received', avatar: ''})));
+
+
+      // // Mock response
+      // if (self.responseInProgress) return;
+      // self.responseInProgress = true;
+      // setTimeout(() => {
+      //   const answer = self.answers[Math.floor(Math.random() * self.answers.length)];
+      //   const person = self.people[Math.floor(Math.random() * self.people.length)];
+      //   self.typingMessage = {
+      //     name: person.name,
+      //     avatar: person.avatar,
+      //   };
+      //   setTimeout(() => {
+      //     self.messages.push({
+      //       text: answer,
+      //       type: 'received',
+      //       name: person.name,
+      //       avatar: person.avatar,
+      //     });
+      //     self.typingMessage = null;
+      //     self.responseInProgress = false;
+      //   }, 4000);
+      // }, 1000);
     },
+    setName() {
+      this.isLogged = true;
+      socket.emit('add-user', this.userName);
+    }
   },
 };
 </script>
