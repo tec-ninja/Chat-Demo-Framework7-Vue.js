@@ -117,7 +117,7 @@ import { f7, f7ready } from 'framework7-vue';
 import $ from 'dom7';
 import io from 'socket.io-client';
 
-const socket = io('localhost:3000');
+const socket = io('173.205.81.4:80');
 
 export default {
   data() {

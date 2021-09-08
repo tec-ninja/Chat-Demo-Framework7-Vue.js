@@ -1,14 +1,20 @@
 var express = require('express');
 var app = express();
 var server = require('http').Server(app);
-var io = require('socket.io')(server);
+var io = require('socket.io')(server, {
+    origins: ['*']
+});
 var moment = require('moment');
 var favicon = require('serve-favicon');
+var cors = require('cors');
 
-app.set('port', (process.env.PORT || 3000));
+app.set('port', (process.env.PORT || 80));
 app.use(favicon(__dirname + '/public/icons/favicon.png'));
 app.use('/npm', express.static('node_modules'));
 app.use(express.static('build'));
+app.use(cors({
+    origin: '*'
+}));
 
 app.get('/', function(request, response) {
     response.sendFile(__dirname + '/build/index.html');

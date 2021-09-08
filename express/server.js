@@ -7,7 +7,7 @@ var io = require('socket.io')(server);
 var moment = require('moment');
 var favicon = require('serve-favicon');
 
-app.set('port', (process.env.PORT || 3000));
+app.set('port', (process.env.PORT || 80));
 app.use(favicon('../public/icons/favicon.png'));
 app.use('/npm', express.static('../node_modules'));
 app.use(express.static('../build'));
